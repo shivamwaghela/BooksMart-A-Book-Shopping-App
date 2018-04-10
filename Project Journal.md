@@ -10,7 +10,9 @@ Welcome to the CMPE281 Team Starburst Hackathon Project wiki!
 
 ## Week 1 (03/26/18 - 04/01/18)
 
-No progress
+1. What did the team do in the past week? : The project started. Research of topics proposed
+2. What is the team going to do next week? : Combine all ideas and decide on the application to be developed
+3. What are the current blockers/challenges the team is facing? : The team did not face any challenges during the week.
 
 ## Week 2 (04/02/18 - 04/06/18)
 1. What did the team do in the past week? : The team decided on the SaaS application to be developed.
