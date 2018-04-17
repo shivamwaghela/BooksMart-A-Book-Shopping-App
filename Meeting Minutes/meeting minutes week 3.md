@@ -44,3 +44,4 @@ None.
 2. Should the all users be able to edit/delete products that were added by others?
 3. Should only Redis be used, Or Redis used as a in-mem cache along with Mongo/Riak
 4. Should the webapp have login/signup and invitation to add user to the cart, or should the invitiation be just via a link.
+5. Can we use AWS Lambda or other serverless functions for the backend API call, and then link Lambda with DynamoDB or other examples.
