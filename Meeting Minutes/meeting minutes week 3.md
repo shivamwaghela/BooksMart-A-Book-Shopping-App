@@ -15,7 +15,8 @@
 
 ## Action Items from Last Week
 
-None.
+1. Created Slack group for project.
+2. Created Functional Diagram.
 
 ## Key Discussion Points
 
