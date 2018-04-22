@@ -1,1 +1,1 @@
-![Picture of USer API Model](https://github.com/nguyensjsu/cmpe281-radhikasrinivasan8/blob/master/User_API_Model.png)
+![Picture of USer API Model](https://github.com/nguyensjsu/team281-starburst/blob/master/Documentation/APIs/User/User_API_Model.png)
