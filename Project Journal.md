@@ -24,7 +24,12 @@ Welcome to the CMPE281 Team Starburst Hackathon Project wiki!
 2. What is the team going to do next week?: Each team member will design the structure of their API.
 3. What are the current blockers/challenges the team is facing? : The team did not face any challenges during the week.
 
-## Week 4 (04/16/18 - 04/21/18)
+## Week 4 (04/16/18 - 04/22/18)
+1. What did the team do in the past week? : We designed the API structures and set a deadline for API implementation
+2. What is the team going to do next week? : Implement all of our APIs for integration by 04/21/18
+3. What are the current blockers/challenges? : The team has been dealing with other heavy coursework
+
+## Week 5 (04/23/18 - 04/29/18)
 1. What did the team do in the past week? :
 2. What is the team going to do next week? :
 3. What are the current blockers/challenges? :
