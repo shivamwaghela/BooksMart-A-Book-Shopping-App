@@ -1,4 +1,3 @@
-Welcome to the CMPE281 Team Starburst Hackathon Project wiki!
 
 ## Cart API
 
@@ -12,3 +11,22 @@ Welcome to the CMPE281 Team Starburst Hackathon Project wiki!
 * /clearcart clears the cart, clears riak 
 
 Not yet completly implemented. 
+
+Data to be passed into /order is 
+```json
+{"userId":"user100",
+	"items":[
+		{
+		"name":"starbucks",
+		"count":1,
+		"rate":3.95
+		},
+		{
+		"name":"peets",
+		"count":1,
+		"rate":4.95
+		}
+		]
+	
+}
+```
