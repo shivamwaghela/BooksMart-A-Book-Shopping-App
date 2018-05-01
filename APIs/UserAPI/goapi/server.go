@@ -1,6 +1,6 @@
 /*
-	Gumball API in Go
-	Uses MySQL & Riak KV
+	User API in Go
+	 Riak KV
 */
 
 package main
@@ -189,7 +189,7 @@ func initRoutes(mx *mux.Router, formatter *render.Render) {
 	
 	mx.HandleFunc("/order/{id}", createNewUser(formatter)).Methods("POST")
 	mx.HandleFunc("/order/{id}", RetrieveUser(formatter)).Methods("GET")
-	//mx.HandleFunc("/order/{id}", gumballProcessOrdersHandler(formatter)).Methods("POST")
+	
 }
 
 // Helper Functions
