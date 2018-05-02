@@ -61,32 +61,36 @@ func (c *Client) Ping() (string, error) {
 }
 
 
-func (c *Client) RegisterUser(key string, ord_inp user) (user, error) {
+func (c *Client) RegisterUser(key string, reqbody string) (user, error) {
 	var ord_nil = user {}
-	fmt.Println("Key is :",key)
- reqbody := "{\"UserId_register\": \"" + 
-	 key + 
+	
+	//fmt.Println("Key is :",key)
+ /*
+	reqbody := "{\"UserId_register\": \"" + 
+	 reqbody.UserId + 
 	 "\",\"Name_register\": \"" +
-	  ord_inp.Name + 
+	  reqbody.Name + 
 	  "\",\"Email_register\": \"" +
-	  ord_inp.Email +
+	  reqbody.Email +
 	  "\"}"
 	  
-	 // resp, err := c.Post(c.Endpoint + "/types/Usertype/buckets/person/keys/"+key+"?returnbody=true", 
-		//"application/json", strings.NewReader(reqbody) )
-		req, _  := http.NewRequest("POST", c.Endpoint + "/types/Usertype/buckets/person/keys/"+key+"?returnbody=true", strings.NewReader(reqbody) )
-		req.Header.Add("Content-Type", "application/json")
-		resp, err := c.Do(req)
+	  */
+	 resp, err := c.Post(c.Endpoint + "/types/Usertype/buckets/person/keys/"+key+"?returnbody=true", 
+		"application/json", strings.NewReader(reqbody) )
+		//req, _  := http.NewRequest("POST", c.Endpoint + "/types/Usertype/buckets/person/keys/"+key+"?returnbody=true", strings.NewReader(reqbody) )
+		//req.Header.Add("Content-Type", "application/json")
+		//resp, err := c.Do(req)
 //fmt.Println(resp)
- if err != nil {
-	 fmt.Println("[RIAK DEBUG] " + err.Error())
-	 return ord_nil, err
- }
+		if err != nil {
+			fmt.Println("[RIAK DEBUG] " + err.Error())
+			return ord_nil, err
+		}	
  defer resp.Body.Close()
  body, err := ioutil.ReadAll(resp.Body)
  if debug { fmt.Println("[RIAK DEBUG] POST: " + c.Endpoint + "/types/Usertype/buckets/person/keys/"+key+"?returnbody=true => "  + string(body)) }
- var ord = user {}
- if err := json.Unmarshal(body, &ord); err != nil {
+ var place user
+  msg1 := json.Unmarshal(body, &place); 
+ if msg1 != nil {
 	fmt.Println("[RIAK DEBUG] JSON unmarshaling failed: %s", err)
 	return ord_nil, err
 }
@@ -97,7 +101,7 @@ func (c *Client) RegisterUser(key string, ord_inp user) (user, error) {
 	 
  }
  */
- return ord, nil
+ return place, nil
 }
 
 func (c *Client) GetUser(key string) (user, error) {
@@ -187,8 +191,8 @@ func init() {
 func initRoutes(mx *mux.Router, formatter *render.Render) {
 	mx.HandleFunc("/ping", pingHandler(formatter)).Methods("GET")
 	
-	mx.HandleFunc("/order/{id}", createNewUser(formatter)).Methods("POST")
-	mx.HandleFunc("/order/{id}", RetrieveUser(formatter)).Methods("GET")
+	mx.HandleFunc("/order", createNewUserhandler(formatter)).Methods("POST")
+	mx.HandleFunc("/order/{id}", RetrieveUserhandler(formatter)).Methods("GET")
 	
 }
 
@@ -207,52 +211,45 @@ func pingHandler(formatter *render.Render) http.HandlerFunc {
 	}
 }
 
-// API Create New User
-func createNewUser(formatter *render.Render) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-/*
-		uuid, err := uuid.NewV4()
-		if err != nil {
-			panic(err)
-		}
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Enter Name: ")
-		value1, _ := reader.ReadString(' ')
-		reader2 := bufio.NewReader(os.Stdin)
-		fmt.Print("Enter Email: ")
-		value2, _ := reader2.ReadString(' ')
-		//fmt.Println(&value)
-		//value := "Order Placed" */
 
-		params := mux.Vars(req)
+
+// API Create New User
+func createNewUserhandler(formatter *render.Render) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+
+
 		
-		
-		fmt.Println("Request is", req.Body)
-		var uuid string = params["id"]
-		fmt.Println( "User ID: ", uuid )
 		var ord user
+		//uuid, _ := uuid.NewV4()
+		decoder := json.NewDecoder(req.Body)
+		err := decoder.Decode(&ord)
 		
-		_= json.NewDecoder(req.Body).Decode(&ord)	
-		fmt.Println("Request body is", req.Body)	
-    	fmt.Println("User is ",ord)
-		if uuid == ""  {
-			formatter.JSON(w, http.StatusBadRequest, "Invalid Request. User ID Missing.")
-		} else {
+		if err != nil {
+			ErrorWithJSON(w, "Incorrect body", http.StatusBadRequest)
+			fmt.Println("[HANDLER DEBUG] ", err.Error())
+			return
+		}
+		
+		//ord.UserId = uuid.String()
+		reqbody, _ := json.Marshal(ord)
+
+		
 
 		c1 := NewClient(server1)
 		//ord, err := c1.RegisterUser(uuid.String(), value1, value2)
-		ord, err := c1.RegisterUser(uuid, ord)
+		val_resp, err := c1.RegisterUser(ord.UserId,string(reqbody))
+		
 		if err != nil {
 			log.Fatal(err)
 			formatter.JSON(w, http.StatusBadRequest, err)
 		} else {
-			formatter.JSON(w, http.StatusOK, ord)
+			formatter.JSON(w, http.StatusOK, val_resp)
 		}
 		}
 	}
-}
+
 // API Get User
-func RetrieveUser(formatter *render.Render) http.HandlerFunc {
+func RetrieveUserhandler(formatter *render.Render) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		
 		params := mux.Vars(req)
@@ -260,7 +257,7 @@ func RetrieveUser(formatter *render.Render) http.HandlerFunc {
 		//var uuid string = params["id"]
 		var uuid string = params["id"]
 		//fmt.Println( "User ID: ", uuid )
-		fmt.Println( "Email: ", uuid )
+		//fmt.Println( "Email: ", uuid )
 
 		c1 := make(chan user)
     	c2 := make(chan user)
@@ -338,7 +335,6 @@ func getOrderServer3(uuid string, chn chan<- user) {
 		chn <- ord
 	}
 }
-
 func getOrderServer4(uuid string, chn chan<- user) {
 	var ord_nil = user {}
 	c := NewClient(server4)
@@ -350,7 +346,6 @@ func getOrderServer4(uuid string, chn chan<- user) {
 		chn <- ord
 	}
 }
-
 func getOrderServer5(uuid string, chn chan<- user) {
 	var ord_nil = user {}
 	c := NewClient(server5)
@@ -362,13 +357,12 @@ func getOrderServer5(uuid string, chn chan<- user) {
 		chn <- ord
 	}
 }
-
 */
+func ErrorWithJSON(w http.ResponseWriter, message string, code int) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(code)
+	fmt.Fprintf(w, "{message: %q}", message)
+}
 
-
-
-
-
-  
 
 
