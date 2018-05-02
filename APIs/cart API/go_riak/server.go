@@ -20,6 +20,8 @@ var server2 = "http://52.53.210.124:8098"  // set in environment
 var server3 = "http://52.53.241.178:8098"  // set in environment
 var server4 = "http://18.236.85.127:8098"
 var server5 = "http://18.236.176.13:8098"
+var elb-oregon = "http://riak-oregon-1289909160.us-west-2.elb.amazonaws.com:80"
+var elb-cali = "http://riak-cali-1130216682.us-west-1.elb.amazonaws.com:80"
 
 //var elb = "http://riak-cali-131891034.us-west-1.elb.amazonaws.com:80"
 var debug = true
@@ -246,15 +248,15 @@ func init() {
 	} else {
 		log.Println("Riak Ping Server5: ", msg)
 	}
-	/*
-		c4 := NewClient(elb)
-		msg1, err := c4.Ping()
-		if err != nil {
-			fmt.Println("[INIT DEBUG] " + err.Error())
-		} else {
-			fmt.Println("Riak Ping Server: ", msg1)
-		}
-	*/
+
+	c6 := NewClient(elb)
+	msg1, err := c6.Ping()
+	if err != nil {
+		fmt.Println("[INIT DEBUG] " + err.Error())
+	} else {
+		fmt.Println("Riak Ping Server: ", msg1)
+	}
+
 }
 
 // Initializing routes
@@ -344,7 +346,7 @@ func newOrderHandler(formatter *render.Render) http.HandlerFunc {
 	}
 }
 
-// To view our order
+// To view our order pass order id
 func getOrderHandler(formatter *render.Render) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 
@@ -370,6 +372,7 @@ func getOrderHandler(formatter *render.Render) http.HandlerFunc {
 	}
 }
 
+//to view  cart with userid, pass user id
 func viewCartHandler(formatter *render.Render) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		fmt.Println("View Cart handler called.")
