@@ -1,15 +1,15 @@
 /*
 	Gumball API in Go
-	Uses MySQL & Riak KV
+	 Riak KV
 */
 
 package main
 
 
 type user struct {
-	UserId    string 	`json:"UserId_register"`
-	Name 	string 		`json:"Name_register"`
-	Email string		`json:"Email_register"`
+	UserId    string 	`json:"UserId"`
+	Name 	string 		`json:"Name"`
+	Email string		`json:"Email"`
 	
 }
 
