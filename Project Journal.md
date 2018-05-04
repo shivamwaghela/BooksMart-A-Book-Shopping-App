@@ -5,7 +5,7 @@ Welcome to the CMPE281 Team Starburst Hackathon Project wiki!
 2) Luis Otero
 3) Mithun Harikumar
 4) Radhika Srinivasan
-5) [Sowmya Gowrishankar]([https://github.com/sowmyagowri)
+5) [Sowmya Gowrishankar](https://github.com/sowmyagowri)
 
 
 ## Week 1 (03/26/18 - 04/01/18)
