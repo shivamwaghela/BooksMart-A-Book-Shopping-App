@@ -23,7 +23,7 @@ import (
 )
 
 /* Riak REST Client */
-var debug = true
+var debug = false
 var server1 = "http://35.167.17.151:8098" // set in environment
 var server2 = "http://54.190.63.248:8098" // set in environment
 var server3 = "http://54.218.184.246:8098" // set in environment
@@ -64,23 +64,10 @@ func (c *Client) Ping() (string, error) {
 func (c *Client) RegisterUser(key string, reqbody string) (user, error) {
 	var ord_nil = user {}
 	
-	//fmt.Println("Key is :",key)
- /*
-	reqbody := "{\"UserId_register\": \"" + 
-	 reqbody.UserId + 
-	 "\",\"Name_register\": \"" +
-	  reqbody.Name + 
-	  "\",\"Email_register\": \"" +
-	  reqbody.Email +
-	  "\"}"
-	  
-	  */
+
 	 resp, err := c.Post(c.Endpoint + "/types/Usertype/buckets/person/keys/"+key+"?returnbody=true", 
 		"application/json", strings.NewReader(reqbody) )
-		//req, _  := http.NewRequest("POST", c.Endpoint + "/types/Usertype/buckets/person/keys/"+key+"?returnbody=true", strings.NewReader(reqbody) )
-		//req.Header.Add("Content-Type", "application/json")
-		//resp, err := c.Do(req)
-//fmt.Println(resp)
+		
 		if err != nil {
 			fmt.Println("[RIAK DEBUG] " + err.Error())
 			return ord_nil, err
@@ -91,23 +78,16 @@ func (c *Client) RegisterUser(key string, reqbody string) (user, error) {
  var place user
   msg1 := json.Unmarshal(body, &place); 
  if msg1 != nil {
-	fmt.Println("[RIAK DEBUG] JSON unmarshaling failed: %s", err)
-	return ord_nil, err
+	fmt.Println("[RIAK DEBUG] JSON unmarshaling failed: %s", msg1)
+	return ord_nil, msg1
 }
-/*
-	 UserId: key,            		
-	 Name: value1,
-	 Email: value2,
-	 
- }
- */
+
  return place, nil
 }
 
 func (c *Client) GetUser(key string) (user, error) {
 	var ord_nil = user {}
-	//fmt.Println("key is " +key)
-	//resp, err := c.Get(c.Endpoint + "/buckets/person/keys/"+key )
+	
 	resp, err := c.Get(c.Endpoint + "/types/Usertype/buckets/person/keys/"+key)
 	
 	if err != nil {
@@ -190,9 +170,8 @@ func init() {
 // API Routes
 func initRoutes(mx *mux.Router, formatter *render.Render) {
 	mx.HandleFunc("/ping", pingHandler(formatter)).Methods("GET")
-	
-	mx.HandleFunc("/order", createNewUserhandler(formatter)).Methods("POST")
-	mx.HandleFunc("/order/{id}", RetrieveUserhandler(formatter)).Methods("GET")
+	mx.HandleFunc("/user", createNewUserhandler(formatter)).Methods("POST")
+	mx.HandleFunc("/user/{id}", RetrieveUserhandler(formatter)).Methods("GET")
 	
 }
 
@@ -211,14 +190,9 @@ func pingHandler(formatter *render.Render) http.HandlerFunc {
 	}
 }
 
-
-
 // API Create New User
 func createNewUserhandler(formatter *render.Render) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-
-
-		
 		var ord user
 		//uuid, _ := uuid.NewV4()
 		decoder := json.NewDecoder(req.Body)
@@ -230,13 +204,10 @@ func createNewUserhandler(formatter *render.Render) http.HandlerFunc {
 			return
 		}
 		
-		//ord.UserId = uuid.String()
 		reqbody, _ := json.Marshal(ord)
 
-		
-
 		c1 := NewClient(server1)
-		//ord, err := c1.RegisterUser(uuid.String(), value1, value2)
+		
 		val_resp, err := c1.RegisterUser(ord.UserId,string(reqbody))
 		
 		if err != nil {
@@ -254,11 +225,9 @@ func RetrieveUserhandler(formatter *render.Render) http.HandlerFunc {
 		
 		params := mux.Vars(req)
 		fmt.Println(params)
-		//var uuid string = params["id"]
+		
 		var uuid string = params["id"]
-		//fmt.Println( "User ID: ", uuid )
-		//fmt.Println( "Email: ", uuid )
-
+		
 		c1 := make(chan user)
     	c2 := make(chan user)
 		c3 := make(chan user)
@@ -272,9 +241,9 @@ func RetrieveUserhandler(formatter *render.Render) http.HandlerFunc {
 
 			go getOrderServer1(uuid, c1) 
 			go getOrderServer2(uuid, c2) 
-			//go getOrderServer3(uuid, c3) 
-			//go getOrderServer3(uuid, c4) 
-			//go getOrderServer3(uuid, c5) 
+			go getOrderServer3(uuid, c3) 
+			go getOrderServer3(uuid, c4) 
+			go getOrderServer3(uuid, c5) 
 
 			var ord user
 		  	select {
@@ -293,7 +262,7 @@ func RetrieveUserhandler(formatter *render.Render) http.HandlerFunc {
 			if ord == (user{}) {
 				formatter.JSON(w, http.StatusBadRequest, "")
 			} else {
-				//fmt.Println( "User: ", ord )
+				
 				formatter.JSON(w, http.StatusOK, ord)
 			}
 		}
@@ -323,7 +292,7 @@ func getOrderServer2(uuid string, chn chan<- user) {
 		chn <- ord
 	}
 }
-/*
+
 func getOrderServer3(uuid string, chn chan<- user) {
 	var ord_nil = user {}
 	c := NewClient(server3)
@@ -357,7 +326,7 @@ func getOrderServer5(uuid string, chn chan<- user) {
 		chn <- ord
 	}
 }
-*/
+
 func ErrorWithJSON(w http.ResponseWriter, message string, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(code)
