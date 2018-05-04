@@ -26,10 +26,10 @@ Welcome to the CMPE281 Team Starburst Hackathon Project wiki!
 
 ## Week 4 (04/16/18 - 04/22/18)
 1. What did the team do in the past week? : We designed the API structures and set a deadline for API implementation
-2. What is the team going to do next week? : Implement all of our APIs for integration by 04/21/18
+2. What is the team going to do next week? : Testing all of our APIs for before integration by 04/21/18
 3. What are the current blockers/challenges? : Integrating all APIs
 
 ## Week 5 (04/23/18 - 04/29/18)
 1. What did the team do in the past week? :We implemented our APIs 
-2. What is the team going to do next week? :Demo rehersal
-3. What are the current blockers/challenges? : -
+2. What is the team going to do next week? :Integrate all APIs
+3. What are the current blockers/challenges? : Integrating all APIs
