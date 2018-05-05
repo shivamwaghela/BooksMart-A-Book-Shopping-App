@@ -496,7 +496,7 @@ func productGet(formatter *render.Render) http.HandlerFunc {
 			fmt.Println("Received Server5: ", tid)
 		}
 
-		if tid == (UserTransactionIds{}) {
+		if tid.UserName == "" {
 			formatter.JSON(w, http.StatusBadRequest, "")
 		} else {
 			fmt.Println( "product: ", tid )
