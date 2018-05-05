@@ -267,77 +267,44 @@ func (c *Client) AddTransactionDetails( user_transaction UserTransactionInput) (
 	return ut, nil
 }
 
-func (c *Client) GetTransactionDetails( user_transaction UserTransactionInput) (UserTransactionInput, error) {
+func (c *Client) GetTransactionDetails(formatter *render.Render) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
 
 
+	fmt.Println("In  getUserTransactionsHandler")
+	params := mux.Vars(req)
+	var uuid string = params["id"]
+	fmt.Println( "User Params ID: ", uuid )
 
-	var ut_nil= UserTransactionInput{}
-	transaction_time:=time.Now().Format("02-Jan-2006 15:04:05")
-	key:=user_transaction.TransactionId
+	if uuid == "" {
+		formatter.JSON(w, http.StatusBadRequest, "Invalid Request. User ID Missing.")
+	} else {
 
-	reqbody :=  "{\"update\":{\"1transactionid_register\":\""+key+
-		"\",\"2time_register\":\""+transaction_time+
-		"\",\"4amount_register\":\""+user_transaction.Amount+
-		"\",\"3products_set\":{\"add_all\":[\"" +user_transaction.Products[0]+"\""
+		c := NewClient(server1)
 
-	for i := 1; i < len(user_transaction.Products); i++ {
-		reqbody=reqbody+",\""+user_transaction.Products[i]+"\""
-
-	}
-	reqbody=reqbody+"]}}"
-	fmt.Println(reqbody)
-
+		transactions:=UserTransactions{}
+		transactions = c.GetTransactionIds(uuid)
+		fmt.Println("After  GetTransactionIds")
+		fmt.Println("Your transactions are here: ", transactions)
 
 
-	url:=c.Endpoint+"/types/maps/buckets/may1/datatypes/"+key+"?returnbody=true"
+		if transactions.UserName  == "" {
+			formatter.JSON(w, http.StatusBadRequest, "")
+		} else {
+			fmt.Println("Your transactions are in statusok: ", transactions)
+			formatter.JSON(w, http.StatusOK ,transactions)
+			fmt.Println(&w)
+			fmt.Println(w)
+			p:=&w
+			fmt.Println(*p)
 
-	fmt.Println(reqbody + "key is "+key)
-	req, _ := http.NewRequest("POST", url,strings.NewReader(reqbody))
-	req.Header.Add("Content-Type", "application/json")
-	fmt.Println("Request is: ");
-	fmt.Println(req )
-	fmt.Println("End of Request ");
-	resp, err := c.Do(req)
-
-
-	if err != nil {
-		fmt.Println("[RIAK DEBUG] " + err.Error())
-		return ut_nil, err
-	}
-
-
-	defer resp.Body.Close()
-
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if debug {
-		fmt.Println("[RIAK DEBUG] PUT: " + url+" => " + string(body))
-	}
-
-	var ut= UserTransactionInput{}
-	if err := json.Unmarshal(body, &ut); err != nil {
-		fmt.Println("[RIAK DEBUG] JSON unmarshaling failed: %s", err)
-		return ut_nil, err
-	}
-	//	var ut_nil= UserTransaction{}
-
-	/*for i := 0; i < len(user_transaction.TransactionId); i++ {
-		if i < (len(user_transaction.TransactionId)-1) {
-
-			user_transaction.TransactionId[i] = "\"" + user_transaction.TransactionId[i] + "\","
-		} else{
-			user_transaction.TransactionId[i] = "\"" + user_transaction.TransactionId[i] + "\""
 		}
 	}
-	fmt.Println("AFter append:")
-	fmt.Println(user_transaction.TransactionId)*/
+	fmt.Println("End of  getUserTransactionsHandler")
 
-
-
-
-
-	return ut, nil
 }
+
+return nil}
 
 func addUserTransactionHandler(formatter *render.Render) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
