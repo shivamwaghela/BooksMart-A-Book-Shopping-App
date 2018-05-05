@@ -1,21 +1,31 @@
 package main
 
 
-type UserTransaction struct {
-	UserName      string  `json:"user_register"`
+type UserTransactionInput struct {
+	UserName      string  `json:"user"`
 	TransactionId string `json:"transactionid"`
+	Products[] string `json:"products"`
+	Amount string `json:"amount"`
 }
 
+type UserTransactions struct {
+	UserName      string
+	TransactionId string
+	Products[] string
+	Amount string
+	TransactionDate string
+}
 
+type ProductsSet struct {
+	Products[] string
+}
 
+type UserTransactionIds struct {
+	UserName      string
+	TransactionId string
+	TransactionDate string
+}
 
-
-
-type transactions [] string
-type AllUserTransactions struct {
-	Dtype string `json:"type"`
-	Value interface {}
-	}
 
 
 
