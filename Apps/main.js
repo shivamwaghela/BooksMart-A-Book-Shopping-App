@@ -2,7 +2,7 @@ var cart = require("./cartApp/app");
 var payment = require("./paymentApp/app");
 var users = require("./UserApp/app");
 var history = require("./User History/app");
-var products = require("./ProductsApp/app");
+var products = require("./ProductApp/app");
 
 cart.use(payment);
 cart.use(users);
