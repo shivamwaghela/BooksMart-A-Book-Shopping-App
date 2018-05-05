@@ -1,10 +1,16 @@
-var cart = require("./cartApp/app")
-var payment = require("./paymentApp/app")
+var cart = require("./cartApp/app");
+var payment = require("./paymentApp/app");
+var users = require("./usersApp/app");
+var history = require("./userHistory/app");
+var products = require("./products/app");
 
 cart.use(payment);
-cart.set('port', process.env.PORT || '4000')
+cart.use(users);
+cart.use(history);
+cart.use(products);
+cart.set('port', process.env.PORT || '4000');
 cart.listen(cart.get('port'), function() {
-  
+  	console.log("Running on port 4000");
 });
 
 /*
