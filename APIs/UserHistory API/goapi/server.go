@@ -593,3 +593,18 @@ func (c *Client) GetTransactionIds(key string) (UserTransactionIds, error) {
 	//fmt.Println(prd)
 	return tid, nil
 }
+
+
+func GetTransactionDetailsServer1(uuid string,chn chan<- []UserTransactionIds) {
+
+	var tid_nil []UserTransactionIds
+	c := NewClient(server1)
+	tids, err := c.GetTransactionIds(uuid)
+	if err != nil {
+		chn <- tid_nil
+	} else {
+		fmt.Println( "Server1: ", tids)
+		chn <- tids
+	}
+}
+
