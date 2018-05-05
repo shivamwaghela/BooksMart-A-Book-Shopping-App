@@ -120,15 +120,6 @@ func init() {
 
 
 
-// API Routes
-func initRoutes(mx *mux.Router, formatter *render.Render) {
-	mx.HandleFunc("/ping", pingHandler(formatter)).Methods("GET")
-	mx.HandleFunc("/addtransaction/{id}", addUserTransactionHandler(formatter)).Methods("POST")
-	mx.HandleFunc("/getusertransactions/{id}", getUserTransactionsHandler(formatter)).Methods("GET")
-	mx.HandleFunc("/getTransactionDetails/{id}", getTransactionDetailsHandler(formatter)).Methods("GET")
-
-}
-
 // Helper Functions
 func failOnError(err error, msg string) {
 	if err != nil {
@@ -631,4 +622,15 @@ func GetTransactionDetailsServer5(uuid string,chn chan<- UserTransactions) {
 		fmt.Println( "Server5: ", tds)
 		chn <- tds
 	}
+}
+
+
+
+// API Routes
+func initRoutes(mx *mux.Router, formatter *render.Render) {
+	mx.HandleFunc("/ping", pingHandler(formatter)).Methods("GET")
+	mx.HandleFunc("/addtransaction/{id}", addUserTransactionHandler(formatter)).Methods("POST")
+	mx.HandleFunc("/getusertransactions/{id}", getUserTransactionsHandler(formatter)).Methods("GET")
+	mx.HandleFunc("/getTransactionDetails/{id}", getTransactionDetailsHandler(formatter)).Methods("GET")
+
 }
