@@ -1,0 +1,13 @@
+{
+  "name": "front_end",
+  "description": "Front end for Multi-User Shopping Cart",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "alert-node": "^1.2.1",
+    "express": "^4.16.3",
+    "fs": "0.0.2",
+    "node-rest-client": "1.4.1",
+    "npm": "^6.0.0"
+  }
+}
