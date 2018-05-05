@@ -12,8 +12,14 @@ This app is a cloud scaled app developed in node.js running with five different 
 5. Checkout the products in your cart
 6. Add payment information on a form and submit it to a payment system
 
+The following is the architecture for the website:
+
+![alt text](/Documentation/Overview_Webapp_Backend.png)
+
 Run the node.js app from the main.js file inside the Apps directory
 
 Thank you for stopping by!
 
 **Team Starburst**
+
+
