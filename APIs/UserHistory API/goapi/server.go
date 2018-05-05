@@ -638,3 +638,16 @@ func GetTransactionDetailsServer3(uuid string,chn chan<- UserTransactions) {
 
 
 
+
+func GetTransactionDetailsServer4(uuid string,chn chan<- UserTransactions) {
+
+	var tid_nil UserTransactions
+	c := NewClient(server1)
+	tds, err := c.GetTransactionIds(uuid)
+	if err != nil {
+		chn <- tid_nil
+	} else {
+		fmt.Println( "Server4: ", tds)
+		chn <- tds
+	}
+}
