@@ -11,6 +11,7 @@ type Transaction struct {
 
 //Payment type used to extract the data from the request
 type Payment struct {
+	UserId		string
 	PaymentType	string
 	Name		string
 	UsernameId	string

@@ -42,6 +42,19 @@ func StringToFloat(number string) (float64, error) {
 }
 
 /**
+	String to Int Conversion Function
+	
+	1. Take a string that resembles an integer
+	2. Attempt to convert the string to an integer
+	3. Return the converted string (if it was possible)
+**/
+func StringToInt(number string) (int, error) {
+	conversion, error := strconv.Atoi(number)
+	
+	return conversion,error
+}
+
+/**
 	Marshal a Transaction object Function
 	
 	1. Take a Transaction object

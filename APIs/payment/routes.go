@@ -13,9 +13,11 @@
 package main
 
 import (
+	"bytes"
 	"net/http"
 	"github.com/gorilla/mux"
 	"github.com/unrolled/render"
+	"gopkg.in/zegl/goriak.v3"
 	"encoding/json"
 	"github.com/satori/go.uuid"
 )
@@ -24,14 +26,16 @@ import (
 var jsonRender = render.New(render.Options{ IndentJSON: true,})
 
 // RabbitMQ queue for sending transactions to be processed
-var queue_server = "192.168.99.100" 
+var queue_server = "rabbit-616549229.us-west-1.elb.amazonaws.com" 
 var queue_port = "5672"
 var queue_name = "payments"
 var queue_user = "guest"
 var queue_pass = "guest"
 
-//Riak database details
-var addresses = []string{"52.53.198.242:8087", "54.153.119.255:8087", "54.183.13.2:8087", "54.193.78.32:8087", "54.183.79.83:8087"}
+//Riak database details (replace ip addresses ip1,ip2,ip3,ip4,ip5 with the ip addresses of each node in the Riak cluster)
+//var cluster1 = []string{"54.183.63.24:8087", "52.53.234.97:8087", "13.57.244.4:8087", "13.57.249.22:8087", "54.67.3.147:8087"}
+var cluster1 = []string{"riak-cluster-1486631455.us-west-1.elb.amazonaws.com:8087"}
+var cluster2 = []string{"riak-elb-final-1701120976.us-west-1.elb.amazonaws.com:8087"}
 var bucket_name = "payments"
 
 /**
@@ -53,7 +57,10 @@ func AddTransactionToQueue() http.HandlerFunc {
 		
 		//check if payment parameters and object are valid
 		if decode_err != nil {
-			jsonRender.JSON(writer, 500, "Could not decode the payment request")
+			buf := new(bytes.Buffer)
+			buf.ReadFrom(request.Body)
+			body := buf.String()
+			jsonRender.JSON(writer, 400, "Could not decode the payment request " + body)
 			return
 		}
 		
@@ -70,11 +77,21 @@ func AddTransactionToQueue() http.HandlerFunc {
 			Status: "Payment Pending",
 		}
 		
+		var addresses []string
+		
+		number,_ := StringToInt(newPayment.UserId)
+		
+		if number%2 == 0 {
+			addresses = cluster2
+		}else {
+			addresses = cluster1
+		}
+		
 		//connect to database
 		database,db_error := RiakConnect(addresses)
 		
 		if db_error != nil {
-			jsonRender.JSON(writer, 600, "Could Not Connect to Database")
+			jsonRender.JSON(writer, 500, "Could Not Connect to Database")
 			return
 		}
 		
@@ -82,7 +99,7 @@ func AddTransactionToQueue() http.HandlerFunc {
 		_,channel,queue_error := RabbitmqConnect(queue_server, queue_port, queue_name, queue_user, queue_pass)
 		
 		if queue_error != nil {
-			jsonRender.JSON(writer, 600, "Could Not Connect to Queue")
+			jsonRender.JSON(writer, 500, "Could Not Connect to Queue" + queue_server)
 			return
 		}
 		
@@ -116,35 +133,56 @@ func SearchForTransaction() http.HandlerFunc {
 		parameters := mux.Vars(request)
 		
 		//connect to database
-		database, db_connect_error := RiakConnect(addresses)
+		database1, db1_connect_error := RiakConnect(cluster1)
+		database2, db2_connect_error := RiakConnect(cluster2)
 		
-		if db_connect_error != nil {
-			jsonRender.JSON(writer, 600, db_connect_error.Error())
+		var db []*goriak.Session
+		
+		if db1_connect_error != nil && db2_connect_error != nil {
+			jsonRender.JSON(writer, 505, "Cannot access any of the data on the database.")
 			return
+		} else if db1_connect_error != nil || db2_connect_error != nil {
+			if db1_connect_error == nil {
+				db = []*goriak.Session{database1}
+			} else {
+				db = []*goriak.Session{database2}
+			}
+		} else {
+			db = []*goriak.Session{database1, database2}
 		}
 		
 		//Option 1: get all transactions. Option 2: get transaction based on ID specified
 		if parameters["id"] == "" {
+			var transactions []Transaction
 			
-			if set,error := RiakGetAll(database, bucket_name); error == nil {
-				for _,value := range set {
-					jsonRender.JSON(writer, http.StatusOK, value)
+			for _,database := range db {
+				if set,error := RiakGetAll(database, bucket_name); error == nil {
+					for _,value := range set {
+						value.UserDetails.Id = ""
+						value.UserDetails.Password = ""
+						transactions = append(transactions, value)
+					}
+					
 				}
-			}else {
-				jsonRender.JSON(writer, 500, error.Error())
 			}
 			
-		}else {
-			if transaction,err := RiakGet(database, bucket_name, parameters["id"]); err == nil {
-				jsonRender.JSON(writer, http.StatusOK, transaction)
-				return
+			if transactions != nil {
+				jsonRender.JSON(writer, http.StatusOK, transactions)
 			}else {
-				jsonRender.JSON(writer, 500, err.Error())
-				return
-			}	
+				jsonRender.JSON(writer, 505, "Cannot read from the nodes on either of the clusters")
+			}
+		}else {
+			for _,database := range db {
+				if transaction,err := RiakGet(database, bucket_name, parameters["id"]); err == nil {
+					transaction.UserDetails.Id = ""
+					transaction.UserDetails.Password = ""
+					jsonRender.JSON(writer, http.StatusOK, transaction)
+					return
+				}
+			}
+			
+			jsonRender.JSON(writer, 400, "Transaction not found in any of the clusters")
 		}
-		
-
 	}
 }
 
@@ -164,7 +202,7 @@ func ProcessAllTransactions() http.HandlerFunc {
 		_,channel,queue_connect_error := RabbitmqConnect(queue_server, queue_port, queue_name, queue_user, queue_pass)
 		
 		if queue_connect_error != nil {
-			jsonRender.JSON(writer, 600, queue_connect_error.Error())
+			jsonRender.JSON(writer, 500, queue_connect_error.Error())
 			return
 		}
 		
@@ -172,49 +210,66 @@ func ProcessAllTransactions() http.HandlerFunc {
 		ids,dequeue_error := DequeueAll(channel, queue_name)
 		
 		if dequeue_error != nil {
-			jsonRender.JSON(writer, 600, dequeue_error.Error())
+			jsonRender.JSON(writer, 500, dequeue_error.Error())
 			return
 		}
 		
 		//connect to database
-		database,db_error := RiakConnect(addresses)
+		database1,db1_error := RiakConnect(cluster1)
+		database2,db2_error := RiakConnect(cluster2)
 		
-		if db_error != nil {
-			jsonRender.JSON(writer, 600, db_error.Error())
+		var db []*goriak.Session
+		
+		if db1_error != nil && db2_error != nil {
+			jsonRender.JSON(writer, 505, "Cannot access the data for any of the clusters available")
 			return
+		}else if db1_error != nil || db2_error != nil {
+			if db1_error == nil {
+				db = []*goriak.Session{database1}
+			}else {
+				db = []*goriak.Session{database2}
+			}
+		}else {
+			db = []*goriak.Session{database1,database2}
 		}
 		
 		//process all of the transactions from the queue
+		
+		var transactions []Transaction
 		for _,value := range ids {
-			if transaction,get_error := RiakGet(database, bucket_name, value); get_error == nil {
-				if transaction.Status != "Payment Process Success!" {
-					transaction.Status = "Payment Process Success!"
-					transaction.UserDetails.Id = ""
-					transaction.UserDetails.Password = ""
-					jsonRender.JSON(writer, http.StatusOK, transaction)
-					RiakSet(database, bucket_name, transaction.TransactionId, transaction)
+			for _,database := range db {
+				if transaction,get_error := RiakGet(database, bucket_name, value); get_error == nil {
+					if transaction.Status != "Payment Process Success!" {
+						transaction.Status = "Payment Process Success!"
+						transaction.UserDetails.Id = ""
+						transaction.UserDetails.Password = ""
+						transactions = append(transactions, transaction)
+						RiakSet(database, bucket_name, transaction.TransactionId, transaction)
+					}
 				}
 			}
 		}
 		
-		//get all of the transactions from the database
-		set,get_all_error := RiakGetAll(database, bucket_name)
-		
-		if get_all_error != nil {
-			jsonRender.JSON(writer, 600, get_all_error.Error())
-			return
+		if transactions != nil {
+			jsonRender.JSON(writer, http.StatusOK, transactions)
 		}
 		
-		//push transactions to queue that have not been processed
-		for _,value := range set {
-			if value.Status == "Payment Pending" {
-				push_error := Enqueue(channel, queue_name, value.TransactionId)
-				
-				if push_error != nil {
-					jsonRender.JSON(writer, 600, push_error.Error())
-					return
+		for _,database := range(db){
+			//get all of the transactions from the database
+			if set,get_all_error := RiakGetAll(database, bucket_name); get_all_error == nil {
+				//push transactions to queue that have not been processed
+				for _,value := range set {
+					if value.Status == "Payment Pending" {
+						push_error := Enqueue(channel, queue_name, value.TransactionId)
+						
+						if push_error != nil {
+							jsonRender.JSON(writer, 500, push_error.Error())
+							return
+						}
+					}
 				}
 			}
+			
 		}
 		
 	}
@@ -237,6 +292,7 @@ func UpdateTransaction() http.HandlerFunc {
 		//update object struct
 		type update_details struct {
 			Id string
+			UserId string
 			Amount float64
 		}
 		
@@ -252,15 +308,55 @@ func UpdateTransaction() http.HandlerFunc {
 		parse_error := json.NewDecoder(request.Body).Decode(&new_update)
 		
 		if parse_error != nil {
-			jsonRender.JSON(writer, 500, parse_error.Error())
+			jsonRender.JSON(writer, 400, parse_error.Error())
 			return
 		}
 		
+		//connect to queue
+		_,channel,queue_connect_error := RabbitmqConnect(queue_server, queue_port, queue_name, queue_user, queue_pass)
+		
+		if queue_connect_error != nil {
+			jsonRender.JSON(writer, 400, update_status{ Id : new_update.Id, Status : "Payment already processed. Cannot update payment amount"})
+			return
+		}
+		
+		//dequeue all transactions from queue
+		ids,dequeue_error := DequeueAll(channel, queue_name)
+		
+		if dequeue_error != nil {
+			jsonRender.JSON(writer, 500, dequeue_error.Error())
+			return
+		}
+		
+		isInQueue := false
+		
+		for _,value := range ids {
+			if new_update.Id == value {
+				isInQueue = true
+				break
+			}
+		}
+		
+		if !isInQueue {
+			jsonRender.JSON(writer, 400, update_status{ Id : new_update.Id, Status : "Payment already processed. Cannot update payment amount"})
+			return
+		}
+		
+		var address []string
+		
+		number,_ := StringToInt(new_update.UserId)
+		
+		if number%2 == 0 {
+			address = cluster2
+		}else {
+			address = cluster1
+		}
+		
 		//connect to the database
-		database,db_error := RiakConnect(addresses)
+		database,db_error := RiakConnect(address)
 		
 		if db_error != nil {
-			jsonRender.JSON(writer, 600, db_error.Error())
+			jsonRender.JSON(writer, 500, db_error.Error())
 			return
 		}
 		
@@ -268,7 +364,7 @@ func UpdateTransaction() http.HandlerFunc {
 		newTransaction, get_error := RiakGet(database, bucket_name, new_update.Id)
 		
 		if get_error != nil {
-			jsonRender.JSON(writer, 500, get_error.Error())
+			jsonRender.JSON(writer, 400, get_error.Error())
 			return
 		}
 		
@@ -278,14 +374,14 @@ func UpdateTransaction() http.HandlerFunc {
 			store_error := RiakSet(database, bucket_name, newTransaction.TransactionId, newTransaction)
 			
 			if store_error != nil {
-				jsonRender.JSON(writer, 600, store_error.Error())
+				jsonRender.JSON(writer, 500, store_error.Error())
 				return
 			}
 			
 			//send status to client
 			jsonRender.JSON(writer, http.StatusOK, update_status{ Id : new_update.Id, Status : "Payment update successful", })
 		}else {
-			jsonRender.JSON(writer, 500, update_status{ Id : new_update.Id, Status : "Payment already processed. Cannot update payment amount"})
+			jsonRender.JSON(writer, 400, update_status{ Id : new_update.Id, Status : "Payment already processed. Cannot update payment amount"})
 		}		
 		
 	}
@@ -303,11 +399,22 @@ func DeleteTransaction() http.HandlerFunc {
 		parameters := mux.Vars(request)
 		
 		//connect to the databse
-		database,connect_err := RiakConnect(addresses)
+		database1,connect1_err := RiakConnect(cluster1)
+		database2, connect2_err := RiakConnect(cluster2)
 		
-		if connect_err != nil {
+		var db []*goriak.Session
+		
+		if connect1_err != nil && connect2_err != nil{
 			jsonRender.JSON(writer, 600, "Could not connect to the database")
 			return
+		}else if connect1_err != nil || connect2_err != nil {
+			if connect1_err == nil {
+				db = []*goriak.Session{database1}
+			}else {
+				db = []*goriak.Session{database2}
+			}
+		}else {
+			db = []*goriak.Session{database1,database2}
 		}
 		
 		//check if an ID has been provided
@@ -315,12 +422,14 @@ func DeleteTransaction() http.HandlerFunc {
 				jsonRender.JSON(writer, 404, "Must have a key id to delete. /delete/{id}")
 			
 		}else {
-			if error := RiakDelete(database, bucket_name, parameters["id"]); error == nil {
-				//return status to client
-				jsonRender.JSON(writer, http.StatusOK, parameters["id"] + " deleted!")
-			}else {
-				jsonRender.JSON(writer, 500, error.Error())
+			for _,database := range db {
+				if error := RiakDelete(database, bucket_name, parameters["id"]); error == nil {
+					//return status to client
+					jsonRender.JSON(writer, http.StatusOK, parameters["id"] + " deleted!")
+					return
+				}
 			}
+			jsonRender.JSON(writer, 500, "Cannot delete the payment transaction because it was not found")
 			
 		}
 		
