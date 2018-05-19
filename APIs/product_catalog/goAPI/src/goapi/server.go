@@ -7,6 +7,7 @@ package main
 
 import (
 	"fmt"
+	"errors"
 	"log"
 	"net/http"
 	"io/ioutil"
@@ -27,11 +28,11 @@ import (
 
 /* Riak REST Client */
 var debug = true
-var server1 = "http://18.144.10.130:8098"
-var server2 = "http://54.241.154.152:8098"
-var server3 = "http://54.219.141.144:8098" 
-var server4 = "http://35.166.183.128:8098"
-var server5 = "http://35.161.230.225:8098" 
+var server3 = "http://54.153.111.238:8098"
+var server2 = "http://54.241.188.5:8098"
+var server1 = "http://13.57.205.174:8098" 
+//var server4 = "http://35.166.183.128:8098"
+//var server5 = "http://35.161.230.225:8098" 
 
 type Client struct {
 	Endpoint string
@@ -91,6 +92,7 @@ func init() {
 		log.Println("Riak Ping Server3: ", msg)		
 	}
 	
+	/*
 	c4 := NewClient(server4)
 	msg, err = c4.Ping( )
 	if err != nil {
@@ -106,6 +108,7 @@ func init() {
 	} else {
 		log.Println("Riak Ping Server5: ", msg)		
 	}
+	*/
 	
 }
 
@@ -136,9 +139,10 @@ func (c *Client) AddProduct(key string, prd_inp product) (product, error) {
 		 "\",\"quantity_register\": \"" +
 		 prd_inp.Quantity + 
 		 "\"}"
-	req, _  := http.NewRequest("PUT", c.Endpoint + "/types/maps/buckets/products/keys/"+key+"?returnbody=true", strings.NewReader(reqbody) )
+		 
+	req, _  := http.NewRequest("PUT", c.Endpoint + "/buckets/products/keys/"+key+"?pw=2&returnbody=true", strings.NewReader(reqbody) )
 	req.Header.Add("Content-Type", "application/json")
-	//fmt.Println( req )
+	
 	resp, err := c.Do(req)	
 	if err != nil {
 		fmt.Println("[RIAK DEBUG] " + err.Error())
@@ -146,7 +150,14 @@ func (c *Client) AddProduct(key string, prd_inp product) (product, error) {
 	}	
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
-	if debug { fmt.Println("[RIAK DEBUG] PUT: " + c.Endpoint + "/types/maps/buckets/products/keys/"+key+"?returnbody=true => " + string(body)) }
+	
+	if debug { fmt.Println("[RIAK DEBUG] PUT: " + c.Endpoint + "/buckets/products/keys/"+key+"?pw=2&returnbody=true => " + string(body)) }
+	if (strings.Contains(string(body), "PW-value unsatisfied: ")){
+		fmt.Println("Inside error")
+		err := errors.New("PW-value unsatisfied")
+		return prd_nil, err
+	}
+	
 	var prd = product { }
 	if err := json.Unmarshal(body, &prd); err != nil {
 		fmt.Println("[RIAK DEBUG] JSON unmarshaling failed: %s", err)
@@ -157,14 +168,14 @@ func (c *Client) AddProduct(key string, prd_inp product) (product, error) {
 
 func (c *Client) GetProduct(key string) (product, error) {
 	var prd_nil = product {}
-	resp, err := c.Get(c.Endpoint + "/types/maps/buckets/products/keys/"+key )
+	resp, err := c.Get(c.Endpoint + "/buckets/products/keys/"+key )
 	if err != nil {
 		fmt.Println("[RIAK DEBUG] " + err.Error())
 		return prd_nil, err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
-	if debug { fmt.Println("[RIAK DEBUG] GET: " + c.Endpoint + "/types/maps/buckets/products/keys/"+key +" => " + string(body)) }
+	if debug { fmt.Println("[RIAK DEBUG] GET: " + c.Endpoint + "/buckets/products/keys/"+key +" => " + string(body)) }
 	var prd = product { }
 	if err := json.Unmarshal([]byte(body), &prd); err != nil {
 		fmt.Println("[RIAK DEBUG] JSON unmarshaling failed: %s", err)
@@ -177,14 +188,14 @@ func (c *Client) GetProduct(key string) (product, error) {
 func (c *Client) GetProducts() ([]product, error) {
 	var prd_nil []product
 	
-	resp, err := c.Get(c.Endpoint + "/types/maps/buckets/products/keys/allproducts" )
+	resp, err := c.Get(c.Endpoint + "/buckets/products/keys/allproducts" )
 	if err != nil {
 		fmt.Println("[RIAK DEBUG] " + err.Error())
 		return prd_nil, err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
-	if debug { fmt.Println("[RIAK DEBUG] GET: " + c.Endpoint + "/types/maps/buckets/products/keys/allproducts" + " => " + string(body)) }
+	if debug { fmt.Println("[RIAK DEBUG] GET: " + c.Endpoint + "/buckets/products/keys/allproducts" + " => " + string(body)) }
 	
 	var prd_array []product
 	if err := json.Unmarshal([]byte(body), &prd_array); err != nil {
@@ -196,7 +207,7 @@ func (c *Client) GetProducts() ([]product, error) {
 
 func (c *Client) Updateproduct(key string, value string) (product, error) {
 
-	resp, _ := c.Get(c.Endpoint + "/types/maps/buckets/products/keys/"+key )
+	resp, _ := c.Get(c.Endpoint + "/buckets/products/keys/"+key )
 	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
 	
@@ -215,7 +226,7 @@ func (c *Client) Updateproduct(key string, value string) (product, error) {
 		 "\",\"quantity_register\": \"" +
 		 value + 
 		 "\"}"
-	req, _  := http.NewRequest("PUT", c.Endpoint + "/types/maps/buckets/products/keys/"+key+"?returnbody=true", strings.NewReader(reqbody) )
+	req, _  := http.NewRequest("PUT", c.Endpoint + "/buckets/products/keys/"+key+"?pw=2&returnbody=true", strings.NewReader(reqbody) )
 	req.Header.Add("Content-Type", "application/json")
 	//fmt.Println( req )
 	resp, err := c.Do(req)	
@@ -225,7 +236,12 @@ func (c *Client) Updateproduct(key string, value string) (product, error) {
 	}	
 	defer resp.Body.Close()
 	body1, err := ioutil.ReadAll(resp.Body)
-	if debug { fmt.Println("[RIAK DEBUG] PUT: " + c.Endpoint + "/types/maps/buckets/products/keys/"+key+"?returnbody=true => " + string(body1)) }
+	if debug { fmt.Println("[RIAK DEBUG] PUT: " + c.Endpoint + "/buckets/products/keys/"+key+"?pw=2&returnbody=true => " + string(body1)) }
+	if (strings.Contains(string(body1), "PW-value unsatisfied: ")){
+		fmt.Println("Inside error")
+		err := errors.New("PW-value unsatisfied")
+		return prd_nil, err
+	}
 	var prd = product { }
 	if err := json.Unmarshal(body1, &prd); err != nil {
 		fmt.Println("[RIAK DEBUG] JSON unmarshaling failed: %s", err)
@@ -272,11 +288,35 @@ func NewProductHandler(formatter *render.Render) http.HandlerFunc {
 			formatter.JSON(w, http.StatusBadRequest, "Invalid Request. Product ID Missing.")
 		} else {
 			c1 := NewClient(server1)
-			prd, err := c1.AddProduct(uuid, prd)
-			if err != nil {
-				log.Fatal(err)
-				formatter.JSON(w, http.StatusBadRequest, err)
+			prd1, err1 := c1.AddProduct(uuid, prd)
+			
+			if (err1.Error() == "PW-value unsatisfied") {
+				c2 := NewClient(server2)
+				prd2, err2 := c2.AddProduct(uuid, prd)
+				
+				if err2 != nil {
+					if (err2.Error() == "PW-value unsatisfied") {
+						c3 := NewClient(server3)
+						prd3, err3 := c3.AddProduct(uuid, prd)
+						if err3 != nil {
+							log.Fatal(err3)
+							formatter.JSON(w, http.StatusBadRequest, err3)
+						} else {
+							prd = prd3
+							formatter.JSON(w, http.StatusOK, prd)
+						}
+					}
+					log.Fatal(err2)
+					formatter.JSON(w, http.StatusBadRequest, err2)
+				} else {
+					prd = prd2
+					formatter.JSON(w, http.StatusOK, prd)
+				}
+			} else if err1 != nil {
+				log.Fatal(err1)
+				formatter.JSON(w, http.StatusBadRequest, err1)
 			} else {
+				prd = prd1
 				formatter.JSON(w, http.StatusOK, prd)
 			}
 		}
@@ -296,14 +336,14 @@ func productGet(formatter *render.Render) http.HandlerFunc {
 			c1 := make(chan []product)
     		c2 := make(chan []product)
     		c3 := make(chan []product)
-    		c4 := make(chan []product)
-    		c5 := make(chan []product)
+    		//c4 := make(chan []product)
+    		//c5 := make(chan []product)
     	
 			go GetProductsServer1(c1)
 			go GetProductsServer2(c2) 
 			go GetProductsServer3(c3) 
-			go GetProductsServer4(c4) 
-			go GetProductsServer5(c5) 
+			//go GetProductsServer4(c4) 
+			//go GetProductsServer5(c5) 
 			
 			var prds []product
 		  	select {
@@ -311,14 +351,16 @@ func productGet(formatter *render.Render) http.HandlerFunc {
 			        fmt.Println("Received Server1: ", prds)
 			    case prds = <-c2:
 			        fmt.Println("Received Server2: ", prds)
+			        	/*
 			    case prds = <-c3:
 			        fmt.Println("Received Server3: ", prds)
 			    case prds = <-c4:
 			        fmt.Println("Received Server4: ", prds)
 			    case prds = <-c5:
 			        fmt.Println("Received Server5: ", prds)
+			        */
 		    }
-
+		    
 			if prds[0] == (product{}) {
 				formatter.JSON(w, http.StatusBadRequest, "")
 			} else {
@@ -331,16 +373,29 @@ func productGet(formatter *render.Render) http.HandlerFunc {
 			c1 := make(chan product)
 	    	c2 := make(chan product)
 	    	c3 := make(chan product)
-			c4 := make(chan product)
-			c5 := make(chan product)
+			//c4 := make(chan product)
+			//c5 := make(chan product)
 	
 			go GetProductServer1(uuid, c1) 
 			go GetProductServer2(uuid, c2) 
 			go GetProductServer3(uuid, c3) 
-			go GetProductServer4(uuid, c4) 
-			go GetProductServer5(uuid, c5) 
-
-			var prd product
+			//go GetProductServer4(uuid, c4) 
+			//go GetProductServer5(uuid, c5) 
+			
+			var prd, prd1, prd2, prd3 product
+			
+			for i := 0; i < 3; i++ {
+			  	select {
+				    case prd1 = <-c1:
+				        fmt.Println("Received Server1: ", prd1)
+				    case prd2 = <-c2:
+				        fmt.Println("Received Server2: ", prd2)
+				    case prd3 = <-c3:
+				        fmt.Println("Received Server3: ", prd3)
+			    }
+		    }
+			
+			/*
 		  	select {
 			    case prd = <-c1:
 			        fmt.Println("Received Server1: ", prd)
@@ -352,8 +407,18 @@ func productGet(formatter *render.Render) http.HandlerFunc {
 			        fmt.Println("Received Server4: ", prd)
 			    case prd = <-c5:
 			        fmt.Println("Received Server5: ", prd)
+			    
 		    }
+		    */
 
+			if prd1.Quantity == prd2.Quantity{
+		    	prd = prd1
+		    } else if prd1.Quantity == prd3.Quantity {
+		    	prd = prd1
+		    } else if prd2.Quantity == prd3.Quantity {
+		    	prd = prd2
+		    }
+		    
 			if prd == (product{}) {
 				formatter.JSON(w, http.StatusBadRequest, "")
 			} else {
@@ -400,6 +465,7 @@ func GetProductServer3(uuid string, chn chan<- product) {
 	}
 }
 
+/*
 func GetProductServer4(uuid string, chn chan<- product) {
 	var prd_nil = product {}
 	c := NewClient(server4)
@@ -423,6 +489,7 @@ func GetProductServer5(uuid string, chn chan<- product) {
 		chn <- prd
 	}
 }
+*/
 
 func GetProductsServer1(chn chan<- []product) {
 	
@@ -463,6 +530,7 @@ func GetProductsServer3(chn chan<- []product) {
 	}
 }
 
+/*
 func GetProductsServer4(chn chan<- []product) {
 	
 	var prds_nil []product
@@ -488,6 +556,7 @@ func GetProductsServer5(chn chan<- []product) {
 		chn <- prds
 	}
 }
+*/
 
 // API Update Quantity
 func productUpdateQuantityHandler(formatter *render.Render) http.HandlerFunc {
@@ -504,12 +573,35 @@ func productUpdateQuantityHandler(formatter *render.Render) http.HandlerFunc {
 			formatter.JSON(w, http.StatusBadRequest, "Invalid Request. Product ID Missing.")
 		} else {
 			c1 := NewClient(server1)
-			prd, err := c1.Updateproduct(uuid, prd.Quantity)
-			if err != nil {
-				log.Fatal(err)
-				formatter.JSON(w, http.StatusBadRequest, err)
+			prd1, err1 := c1.Updateproduct(uuid, prd.Quantity)
+			
+			if (err1.Error() == "PW-value unsatisfied") {
+				c2 := NewClient(server2)
+				prd2, err2 := c2.Updateproduct(uuid, prd.Quantity)
+				
+				if err2 != nil {
+					if (err2.Error() == "PW-value unsatisfied") {
+						c3 := NewClient(server3)
+						prd3, err3 := c3.Updateproduct(uuid, prd.Quantity)
+						if err3 != nil {
+							log.Fatal(err3)
+							formatter.JSON(w, http.StatusBadRequest, err3)
+						} else {
+							prd = prd3
+							formatter.JSON(w, http.StatusOK, prd)
+						}
+					}
+					log.Fatal(err2)
+					formatter.JSON(w, http.StatusBadRequest, err2)
+				} else {
+					prd = prd2
+					formatter.JSON(w, http.StatusOK, prd)
+				}
+			} else if err1 != nil {
+				log.Fatal(err1)
+				formatter.JSON(w, http.StatusBadRequest, err1)
 			} else {
-				formatter.JSON(w, http.StatusOK, prd)
+				formatter.JSON(w, http.StatusOK, prd1)
 			}
 		}
 	}
