@@ -1,6 +1,6 @@
 /*
 	Gumball API in Go
-	Uses MySQL & Riak KV
+	 & Riak KV
 */
 
 package main
