@@ -1,6 +1,6 @@
 /*
 	Gumball API in Go
-	 Riak KV
+	using Riak KV
 */
 
 package main

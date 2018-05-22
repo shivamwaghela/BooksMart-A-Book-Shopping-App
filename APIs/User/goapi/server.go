@@ -19,16 +19,16 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/unrolled/render"
 	//"github.com/satori/go.uuid"
+	"strconv"
     
 )
 
 /* Riak REST Client */
-var debug = false
-var server1 = "http://35.167.17.151:8098" // set in environment
-var server2 = "http://54.190.63.248:8098" // set in environment
-var server3 = "http://54.218.184.246:8098" // set in environment
-var server4 = "http://13.56.226.53:8098" // set in environment
-var server5 = "http://54.193.104.250:8098" // set in environment
+var debug = true
+var server1 = "http://riak-elb-final-1701120976.us-west-1.elb.amazonaws.com:80"
+var server2 = "http://riak-cluster-1486631455.us-west-1.elb.amazonaws.com:80" // set in environment
+
+
 
 type Client struct {
 	Endpoint string
@@ -64,8 +64,9 @@ func (c *Client) Ping() (string, error) {
 func (c *Client) RegisterUser(key string, reqbody string) (user, error) {
 	var ord_nil = user {}
 	
+	
 
-	 resp, err := c.Post(c.Endpoint + "/types/Usertype/buckets/person/keys/"+key+"?returnbody=true", 
+	 resp, err := c.Post(c.Endpoint + "/types/maps/buckets/person/keys/"+key+"?returnbody=true", 
 		"application/json", strings.NewReader(reqbody) )
 		
 		if err != nil {
@@ -74,21 +75,21 @@ func (c *Client) RegisterUser(key string, reqbody string) (user, error) {
 		}	
  defer resp.Body.Close()
  body, err := ioutil.ReadAll(resp.Body)
- if debug { fmt.Println("[RIAK DEBUG] POST: " + c.Endpoint + "/types/Usertype/buckets/person/keys/"+key+"?returnbody=true => "  + string(body)) }
+ if debug { fmt.Println("[RIAK DEBUG] POST: " + c.Endpoint + "/types/maps/buckets/person/keys/"+key+"?returnbody=true => "  + string(body)) }
  var place user
   msg1 := json.Unmarshal(body, &place); 
  if msg1 != nil {
 	fmt.Println("[RIAK DEBUG] JSON unmarshaling failed: %s", msg1)
 	return ord_nil, msg1
 }
-
+fmt.Println("place", place)
  return place, nil
 }
 
 func (c *Client) GetUser(key string) (user, error) {
 	var ord_nil = user {}
 	
-	resp, err := c.Get(c.Endpoint + "/types/Usertype/buckets/person/keys/"+key)
+	resp, err := c.Get(c.Endpoint + "/types/maps/buckets/person/keys/"+key)
 	
 	if err != nil {
 		fmt.Println("[RIAK DEBUG] " + err.Error())
@@ -96,12 +97,13 @@ func (c *Client) GetUser(key string) (user, error) {
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
-	if debug { fmt.Println("[RIAK DEBUG] GET: " + c.Endpoint + "/buckets/Usertype/keys/"+key +" => " + string(body)) }
+	if debug { fmt.Println("[RIAK DEBUG] GET: " + c.Endpoint + "/buckets/maps/keys/"+key +" => " + string(body)) }
 	var ord = user { }
 	if err := json.Unmarshal(body, &ord); err != nil {
 		fmt.Println("RIAK DEBUG] JSON unmarshaling failed: %s", err)
 		return ord_nil, err
 	}
+	fmt.Println("ord is",ord)
 	return ord, nil
 }
 
@@ -131,6 +133,7 @@ func init() {
 	} else {
 		log.Println("Riak Ping Server1: ", msg)		
 	}
+	
 
 	c2 := NewClient(server2)
 	msg, err = c2.Ping( )
@@ -140,31 +143,8 @@ func init() {
 		log.Println("Riak Ping Server2: ", msg)		
 	}
 
-	c3 := NewClient(server3)
-	msg, err = c3.Ping( )
-	if err != nil {
-		log.Fatal(err)
-	} else {
-		log.Println("Riak Ping Server3: ", msg)		
-	}
-
-	c4 := NewClient(server4)
-	msg, err = c4.Ping( )
-	if err != nil {
-		log.Fatal(err)
-	} else {
-		log.Println("Riak Ping Server3: ", msg)		
-	}
-
-	c5 := NewClient(server5)
-	msg, err = c5.Ping( )
-	if err != nil {
-		log.Fatal(err)
-	} else {
-		log.Println("Riak Ping Server3: ", msg)		
-	}
-
 }
+
 
 
 // API Routes
@@ -205,9 +185,11 @@ func createNewUserhandler(formatter *render.Render) http.HandlerFunc {
 		}
 		
 		reqbody, _ := json.Marshal(ord)
-
-		c1 := NewClient(server1)
 		
+		user_id, _ := strconv.Atoi(ord.UserId)
+		if (user_id%2==0){
+			c1 := NewClient(server1)
+				
 		val_resp, err := c1.RegisterUser(ord.UserId,string(reqbody))
 		
 		if err != nil {
@@ -216,7 +198,24 @@ func createNewUserhandler(formatter *render.Render) http.HandlerFunc {
 		} else {
 			formatter.JSON(w, http.StatusOK, val_resp)
 		}
+		
+	} else {
+		{
+			c2 := NewClient(server2)
+		val_resp, err := c2.RegisterUser(ord.UserId,string(reqbody))
+		
+		if err != nil {
+			log.Fatal(err)
+			formatter.JSON(w, http.StatusBadRequest, err)
+		} else {
+			formatter.JSON(w, http.StatusOK, val_resp)
 		}
+		
+	}
+	}
+		}
+
+			
 	}
 
 // API Get User
@@ -230,41 +229,50 @@ func RetrieveUserhandler(formatter *render.Render) http.HandlerFunc {
 		
 		c1 := make(chan user)
     	c2 := make(chan user)
-		c3 := make(chan user)
-		c4 := make(chan user)
-		c5 := make(chan user)
+		
 
 		if uuid == ""  {
 			fmt.Println(uuid)
 			formatter.JSON(w, http.StatusBadRequest, "Invalid Request. ID Missing.")
 		} else {
+			{
+				user_idr, _ := strconv.Atoi(uuid)
+				if  (user_idr%2==0){
+					go getOrderServer1(uuid, c1) 
+					var ord user
+					ord = <-c1
+					fmt.Println("Received Server1: ", ord)
+					if ord == (user{}) {
+						formatter.JSON(w, http.StatusBadRequest, "")
+					} else {
+						
+						formatter.JSON(w, http.StatusOK, ord)
+					}
 
-			go getOrderServer1(uuid, c1) 
-			go getOrderServer2(uuid, c2) 
-			go getOrderServer3(uuid, c3) 
-			go getOrderServer3(uuid, c4) 
-			go getOrderServer3(uuid, c5) 
 
-			var ord user
-		  	select {
-			    case ord = <-c1:
-			        fmt.Println("Received Server1: ", ord)
-			    case ord = <-c2:
-			        fmt.Println("Received Server2: ", ord)
-			    case ord = <-c3:
-					fmt.Println("Received Server3: ", ord)
-				case ord = <-c4:
-					fmt.Println("Received Server4: ", ord)
-				case ord = <-c5:
-			        fmt.Println("Received Server5: ", ord)
-		    }
 
-			if ord == (user{}) {
-				formatter.JSON(w, http.StatusBadRequest, "")
-			} else {
+				} else{
+					go getOrderServer2(uuid, c2) 
+					var ord user
+					ord = <-c2
+					fmt.Println("Received Server2: ", ord)
+					if ord == (user{}) {
+						formatter.JSON(w, http.StatusBadRequest, "")
+					} else {
+						
+						formatter.JSON(w, http.StatusOK, ord)
+					}
+
+
+				}
+
 				
-				formatter.JSON(w, http.StatusOK, ord)
+
 			}
+			
+
+			
+			
 		}
 	}
 }
@@ -293,39 +301,6 @@ func getOrderServer2(uuid string, chn chan<- user) {
 	}
 }
 
-func getOrderServer3(uuid string, chn chan<- user) {
-	var ord_nil = user {}
-	c := NewClient(server3)
-	ord, err := c.GetUser(uuid)
-	if err != nil {
-		chn <- ord_nil
-	} else {
-		fmt.Println( "Server3: ", ord)
-		chn <- ord
-	}
-}
-func getOrderServer4(uuid string, chn chan<- user) {
-	var ord_nil = user {}
-	c := NewClient(server4)
-	ord, err := c.GetUser(uuid)
-	if err != nil {
-		chn <- ord_nil
-	} else {
-		fmt.Println( "Server4: ", ord)
-		chn <- ord
-	}
-}
-func getOrderServer5(uuid string, chn chan<- user) {
-	var ord_nil = user {}
-	c := NewClient(server5)
-	ord, err := c.GetUser(uuid)
-	if err != nil {
-		chn <- ord_nil
-	} else {
-		fmt.Println( "Server5: ", ord)
-		chn <- ord
-	}
-}
 
 func ErrorWithJSON(w http.ResponseWriter, message string, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
